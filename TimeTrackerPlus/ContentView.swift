@@ -9,22 +9,31 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedProject = "Project A"
+    @State private var projects = ["Project A", "Project B"] // Flexible project list
     @State private var isTracking = false
     @State private var startTime: Date?
     @State private var timeRecords: [(project: String, start: Date, end: Date)] = []
+    @State private var statusMessage = "Not Tracking" // Status message
+    @State private var showingFilePicker = false
+    @State private var temporaryFileURL: URL?
 
     var body: some View {
         VStack {
-            Spacer()
+            Spacer() // Add this spacer to push the content down
+
             Picker("Select Project", selection: $selectedProject) {
-                Text("Project A").tag("Project A")
-                Text("Project B").tag("Project B")
-                // Add more projects here
+                ForEach(projects, id: \.self) { project in
+                    Text(project).tag(project)
+                }
             }
             .pickerStyle(WheelPickerStyle())
             .font(.title) // Adjust text size
             .padding()
-            Spacer()
+
+            Text(statusMessage) // Display status message
+                .font(.headline)
+                .padding()
+            Spacer() // Add a second spacer to push the content further down
             HStack {
                 Button(action: {
                     startTracking()
@@ -61,7 +70,7 @@ struct ContentView: View {
             Spacer().frame(height: 50)
 
             Button(action: {
-                exportCSV()
+                createTemporaryFile()
             }) {
                 Image("exportButton") // Use the export button image
                     .resizable()
@@ -73,6 +82,13 @@ struct ContentView: View {
                     )
             }
             .padding()
+            .sheet(isPresented: $showingFilePicker) {
+                if let temporaryFileURL = temporaryFileURL {
+                    FilePicker(url: temporaryFileURL) { url in
+                        print("File saved to: \(url.absoluteString)")
+                    }
+                }
+            }
 
             Spacer()
         }
@@ -82,6 +98,7 @@ struct ContentView: View {
     func startTracking() {
         startTime = Date()
         isTracking = true
+        statusMessage = "Tracking time for \(selectedProject)" // Update status message
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.startBackgroundTask()
         }
@@ -93,46 +110,26 @@ struct ContentView: View {
             timeRecords.append((project: selectedProject, start: start, end: end))
         }
         isTracking = false
+        statusMessage = "Not Tracking" // Update status message
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.endBackgroundTask()
         }
     }
 
-    func exportCSV() {
+    func createTemporaryFile() {
         let csvString = timeRecords.map {
             "\"\($0.project)\",\"\($0.start)\",\"\($0.end)\""
         }.joined(separator: "\n")
-        saveToICloud(csvString: csvString)
-    }
 
-    func saveToICloud(csvString: String) {
-        let fileName = "TimeRecords.csv"
-        let folderName = "TimeTracking"
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory
+        let temporaryFileURL = temporaryDirectoryURL.appendingPathComponent("TimeRecords.csv")
 
-        // Save to iCloud
-        if let iCloudDocumentDirectory = FileManager.default.url(forUbiquityContainerIdentifier: nil)?.appendingPathComponent("Documents") {
-            let iCloudFolderURL = iCloudDocumentDirectory.appendingPathComponent(folderName)
-            createFolderIfNeeded(at: iCloudFolderURL)
-            let iCloudFileURL = iCloudFolderURL.appendingPathComponent(fileName)
-            saveFile(at: iCloudFileURL, content: csvString)
-        }
-    }
-
-    func createFolderIfNeeded(at url: URL) {
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
+            try csvString.write(to: temporaryFileURL, atomically: true, encoding: .utf8)
+            self.temporaryFileURL = temporaryFileURL
+            self.showingFilePicker = true
         } catch {
-            print("Error creating folder: \(error)")
-        }
-    }
-
-    func saveFile(at url: URL, content: String) {
-        do {
-            try content.write(to: url, atomically: true, encoding: .utf8)
-            print("File saved to: \(url)")
-        } catch {
-            print("Error saving file: \(error)")
+            print("Error creating temporary file: \(error)")
         }
     }
 }
-
