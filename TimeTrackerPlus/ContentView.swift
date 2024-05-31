@@ -14,13 +14,11 @@ struct ContentView: View {
     @State private var startTime: Date?
     @State private var timeRecords: [(project: String, start: Date, end: Date)] = []
     @State private var statusMessage = "Not Tracking" // Status message
-    @State private var showingFilePicker = false
-    @State private var temporaryFileURL: URL?
-    
+
     var body: some View {
         VStack {
             Spacer() // Add this spacer to push the content down
-            
+
             Picker("Select Project", selection: $selectedProject) {
                 ForEach(projects, id: \.self) { project in
                     Text(project).tag(project)
@@ -29,10 +27,11 @@ struct ContentView: View {
             .pickerStyle(WheelPickerStyle())
             .font(.title) // Adjust text size
             .padding()
-            
+
             Text(statusMessage) // Display status message
                 .font(.headline)
                 .padding()
+
             Spacer() // Add a second spacer to push the content further down
             HStack {
                 Button(action: {
@@ -49,7 +48,7 @@ struct ContentView: View {
                 }
                 .disabled(isTracking)
                 .padding(.horizontal)
-                
+
                 Button(action: {
                     stopTracking()
                 }) {
@@ -66,9 +65,9 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
             .padding()
-            
+
             Spacer().frame(height: 50)
-            
+
             Button(action: {
                 exportCSV()
             }) {
@@ -82,19 +81,12 @@ struct ContentView: View {
                     )
             }
             .padding()
-            .sheet(isPresented: $showingFilePicker) {
-                if let temporaryFileURL = temporaryFileURL {
-                    FilePicker(url: temporaryFileURL) { url in
-                        print("File saved to: \(url.absoluteString)")
-                    }
-                }
-            }
-            
+
             Spacer()
         }
         .padding()
     }
-    
+
     func startTracking() {
         startTime = Date()
         isTracking = true
@@ -103,7 +95,7 @@ struct ContentView: View {
             appDelegate.startBackgroundTask()
         }
     }
-    
+
     func stopTracking() {
         if let start = startTime {
             let end = Date()
@@ -115,13 +107,13 @@ struct ContentView: View {
             appDelegate.endBackgroundTask()
         }
     }
-    
+
     func exportCSV() {
-        let csvString = timeRecords.map { "\($0.project),\($0.start),\($0.end)" }.joined(separator: "\n")
+        let csvString = timeRecords.map { "\"\($0.project)\",\"\($0.start)\",\"\($0.end)\"" }.joined(separator: "\n")
         saveToLocalAndICloud(csvString: csvString)
         presentDocumentPicker(with: csvString)
     }
-    
+
     func saveToLocalAndICloud(csvString: String) {
         let fileName = "TimeRecords.csv"
         let folderName = "TimeTracking"
@@ -133,7 +125,7 @@ struct ContentView: View {
             let localFileURL = localFolderURL.appendingPathComponent(fileName)
             saveFile(at: localFileURL, content: csvString)
         }
-        
+
         // Save to iCloud
         if let iCloudDocumentDirectory = FileManager.default.url(forUbiquityContainerIdentifier: nil)?.appendingPathComponent("Documents") {
             let iCloudFolderURL = iCloudDocumentDirectory.appendingPathComponent(folderName)
@@ -142,7 +134,7 @@ struct ContentView: View {
             saveFile(at: iCloudFileURL, content: csvString)
         }
     }
-    
+
     func createFolderIfNeeded(at url: URL) {
         do {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
@@ -150,7 +142,7 @@ struct ContentView: View {
             print("Error creating folder: \(error)")
         }
     }
-    
+
     func saveFile(at url: URL, content: String) {
         do {
             try content.write(to: url, atomically: true, encoding: .utf8)
