@@ -8,8 +8,8 @@ import UIKit
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedProject = "Project A"
-    @State private var projects = ["Project A", "Project B"] // Flexible project list
+    @State private var selectedProject = "Ophtecs"
+    @State private var projects = ["AI Projects", "Ophtecs", "Web Work", "AWS Clients", "S.Gabler", "WP Padel"] // Flexible project list
     @State private var isTracking = false
     @State private var startTime: Date?
     @State private var timeRecords: [(project: String, start: Date, end: Date)] = []
@@ -39,7 +39,7 @@ struct ContentView: View {
                 }) {
                     Image("startButton") // Use the start button image
                         .resizable()
-                        .frame(width: 100, height: 50)
+                        .frame(width: 120, height: 80)
                         .overlay(
                             Text("Start")
                                 .foregroundColor(.white)
@@ -54,7 +54,7 @@ struct ContentView: View {
                 }) {
                     Image("stopButton") // Use the stop button image
                         .resizable()
-                        .frame(width: 100, height: 50)
+                        .frame(width: 120, height: 80)
                         .overlay(
                             Text("Stop")
                                 .foregroundColor(.white)
@@ -109,11 +109,29 @@ struct ContentView: View {
     }
 
     func exportCSV() {
-        let csvString = timeRecords.map { "\"\($0.project)\",\"\($0.start)\",\"\($0.end)\"" }.joined(separator: "\n")
-        saveToLocalAndICloud(csvString: csvString)
-        presentDocumentPicker(with: csvString)
+        let dateFormatter = ISO8601DateFormatter()
+        let csvString = timeRecords.map { record in
+            let formattedStart = dateFormatter.string(from: record.start)
+            let formattedEnd = dateFormatter.string(from: record.end)
+            let duration = record.end.timeIntervalSince(record.start)
+            
+            let hours = Int(duration) / 3600
+            let minutes = Int(duration) % 3600 / 60
+            let seconds = Int(duration) % 60
+            let formattedDuration = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+            
+            return "\"\(record.project)\",\"\(formattedStart)\",\"\(formattedEnd)\",\"\(formattedDuration)\""
+        }.joined(separator: "\n")
+        
+        // Adding the header row
+        let header = "\"Project\",\"Start\",\"End\",\"Duration (hh:mm:ss)\""
+        let csvWithHeader = "\(header)\n\(csvString)"
+        
+        saveToLocalAndICloud(csvString: csvWithHeader)
+        presentDocumentPicker(with: csvWithHeader)
     }
-
+    
+    
     func saveToLocalAndICloud(csvString: String) {
         let fileName = "TimeRecords.csv"
         let folderName = "TimeTracking"
